@@ -1,0 +1,157 @@
+
+study("BuyingPattern",overlay=false)
+
+length = input(20, title="BB Length")
+mult = input(2.0,title="BB MultFactor")
+lengthKC=input(20, title="KC Length")
+multKC = input(1.5, title="KC MultFactor")
+
+useTrueRange = input(true, title="Use TrueRange (KC)", type=bool)
+
+// Calculate BB
+source = close
+basis = sma(source, length)
+dev = mult * stdev(source, length)
+upperBB = basis + dev
+lowerBB = basis - dev
+
+// Calculate KC
+ma = sma(source, lengthKC)
+range = useTrueRange ? tr : (high - low)
+rangema = sma(range, lengthKC)
+upperKC = ma + rangema * multKC
+lowerKC = ma - rangema * multKC
+
+sqzOn  = (lowerBB > lowerKC) and (upperBB < upperKC)
+sqzOff = (lowerBB < lowerKC) and (upperBB > upperKC)
+noSqz  = (sqzOn == false) and (sqzOff == false)
+
+val = linreg(source  -  avg(avg(highest(high, lengthKC), lowest(low, lengthKC)),sma(close,lengthKC)), 
+            lengthKC,0)
+
+bcolor = iff( val > 0, 
+            iff( val > nz(val[1]), lime, green),
+            iff( val < nz(val[1]), red, maroon))
+scolor = noSqz ? blue : sqzOn ? black : gray 
+
+
+
+
+
+
+n1 = input(10, "Channel Length")
+n2 = input(21, "Average Length")
+obLevel1 = input(60, "Over Bought Level 1")
+obLevel2 = input(53, "Over Bought Level 2")
+osLevel1 = input(-60, "Over Sold Level 1")
+osLevel2 = input(-53, "Over Sold Level 2")
+ 
+ap = hlc3 
+esa = ema(ap, n1)
+d = ema(abs(ap - esa), n1)
+ci = (ap - esa) / (0.015 * d)
+tci = ema(ci, n2)
+ 
+wt1 = tci
+wt2 = sma(wt1,4)
+
+[macdLine, signalLine, histLine] = macd(close, 12, 26, 9)
+
+
+lrp = input(5, title="Linear Regression Period")
+stf = input(5, title="Slope Time Frame")
+lr = linreg(close, lrp, 0)
+ch = lr-lr[stf]
+slope=ch/stf
+
+
+
+
+len = input(title="Length", type=integer, defval=14)
+th = input(title="threshold", type=integer, defval=20)
+
+TrueRange = max(max(high-low, abs(high-nz(close[1]))), abs(low-nz(close[1])))
+DirectionalMovementPlus = high-nz(high[1]) > nz(low[1])-low ? max(high-nz(high[1]), 0): 0
+DirectionalMovementMinus = nz(low[1])-low > high-nz(high[1]) ? max(nz(low[1])-low, 0): 0
+
+
+SmoothedTrueRange = nz(SmoothedTrueRange[1]) - (nz(SmoothedTrueRange[1])/len) + TrueRange
+SmoothedDirectionalMovementPlus = nz(SmoothedDirectionalMovementPlus[1]) - (nz(SmoothedDirectionalMovementPlus[1])/len) + DirectionalMovementPlus
+SmoothedDirectionalMovementMinus = nz(SmoothedDirectionalMovementMinus[1]) - (nz(SmoothedDirectionalMovementMinus[1])/len) + DirectionalMovementMinus
+
+DIPlus = SmoothedDirectionalMovementPlus / SmoothedTrueRange * 100
+DIMinus = SmoothedDirectionalMovementMinus / SmoothedTrueRange * 100
+DX = abs(DIPlus-DIMinus) / (DIPlus+DIMinus)*100
+
+
+fast = 12, slow = 26
+fastMA = ema(close, fast)
+slowMA = ema(close, slow)
+macd = fastMA - slowMA
+signal = sma(macd, 9)
+
+
+lrpp = input(2, title="Linear Reg")
+stfp = input(2, title="Slope Time")
+lrq = linreg(wt2, lrpp, 0)
+chp = lrq-lrq[stfp]
+slopep=chp/stfp
+
+
+
+
+pd = input(22, title="LookBack Period Standard Deviation High")
+bbl = input(20, title="Bolinger Band Length")
+multz = input(2.0    , minval=1, maxval=5, title="Bollinger Band Standard Devaition Up")
+lb = input(50  , title="Look Back Period Percentile High")
+ph = input(.85, title="Highest Percentile - 0.90=90%, 0.95=95%, 0.99=99%")
+pl = input(1.01, title="Lowest Percentile - 1.10=90%, 1.05=95%, 1.01=99%")
+hp = input(false, title="Show High Range - Based on Percentile and LookBack Period?")
+sd = input(false, title="Show Standard Deviation Line?")
+
+wvf = ((highest(close, pd)-low)/(highest(close, pd)))*100
+
+sDev = multz * stdev(wvf, bbl)
+midLine = sma(wvf, bbl)
+lowerBand = midLine - sDev
+upperBand = midLine + sDev
+
+rangeHigh = (highest(wvf, lb)) * ph
+rangeLow = (lowest(wvf, lb)) * pl
+
+
+col = wvf >= upperBand or wvf >= rangeHigh ? lime : gray
+
+
+
+lengtht = input(130, title="VFI length")
+coef = input(0.2)
+vcoef = input(2.5, title="Max. vol. cutoff")
+signalLength=input(5)
+smoothVFI=input(false, type=bool)
+
+mat(x,y) => smoothVFI ? sma(x,y) : x
+
+typical=hlc3
+inter = log( typical ) - log( typical[1] )
+vinter = stdev(inter, 30 )
+cutoff = coef * vinter * close
+vave = sma( volume, lengtht )[1]
+vmax = vave * vcoef
+vc = iff(volume < vmax, volume, vmax) //min( volume, vmax )
+mf = typical - typical[1]
+vcp = iff( mf > cutoff, vc, iff ( mf < -cutoff, -vc, 0 ) )
+
+vfi = mat(sum( vcp , lengtht )/vave, 3)
+vfima=ema( vfi, signalLength )
+dp=vfi-vfima
+
+
+showHisto=input(false, type=bool)
+
+
+AB = ((col==lime) and (wvf>=4) and (vfima<0) and (wt2<-65)) ? 1 : 0
+plot(AB, title="Buying Yellow", color=yellow, linewidth=1, style=line)
+
+
+
